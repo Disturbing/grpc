@@ -34,6 +34,7 @@ namespace Grpc.Core
     /// </summary>
     public class Server
     {
+        public const string CatchAllServiceName = "*";
         const int DefaultRequestCallTokensPerCq = 2000;
         static readonly ILogger Logger = GrpcEnvironment.Logger.ForType<Server>();
 
@@ -344,7 +345,7 @@ namespace Grpc.Core
             {
                 _wrl.EnterReadLock();
                 IServerCallHandler callHandler;
-                if (!callHandlers.TryGetValue(newRpc.Method, out callHandler))
+                if (!callHandlers.TryGetValue(newRpc.Method, out callHandler) && !callHandlers.TryGetValue(CatchAllServiceName, out callHandler))
                 {
                     callHandler = UnimplementedMethodCallHandler.Instance;
                 }
