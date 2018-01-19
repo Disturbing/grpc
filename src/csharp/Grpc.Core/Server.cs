@@ -21,6 +21,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core.Internal;
 using Grpc.Core.Logging;
@@ -44,11 +45,14 @@ namespace Grpc.Core
         readonly List<ChannelOption> options;
         readonly ServerSafeHandle handle;
         readonly object myLock = new object();
+        private readonly ReaderWriterLockSlim _wrl = new ReaderWriterLockSlim();
 
         readonly List<ServerServiceDefinition> serviceDefinitionsList = new List<ServerServiceDefinition>();
         readonly List<ServerPort> serverPortList = new List<ServerPort>();
         readonly Dictionary<string, IServerCallHandler> callHandlers = new Dictionary<string, IServerCallHandler>();
         readonly TaskCompletionSource<object> shutdownTcs = new TaskCompletionSource<object>();
+
+        private ReaderWriterLockSlim _rwl = new ReaderWriterLockSlim();
 
         bool startRequested;
         volatile bool shutdownRequested;
@@ -256,12 +260,13 @@ namespace Grpc.Core
         {
             lock (myLock)
             {
-                GrpcPreconditions.CheckState(!startRequested);
+                _wrl.EnterWriteLock();
                 foreach (var entry in serviceDefinition.CallHandlers)
                 {
                     callHandlers.Add(entry.Key, entry.Value);
                 }
                 serviceDefinitionsList.Add(serviceDefinition);
+                _wrl.ExitWriteLock();
             }
         }
 
@@ -337,6 +342,7 @@ namespace Grpc.Core
         {
             try
             {
+                _wrl.EnterReadLock();
                 IServerCallHandler callHandler;
                 if (!callHandlers.TryGetValue(newRpc.Method, out callHandler))
                 {
@@ -351,6 +357,7 @@ namespace Grpc.Core
             finally
             {
                 continuation();
+                _wrl.ExitReadLock();
             }
         }
 
