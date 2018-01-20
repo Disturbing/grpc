@@ -35,6 +35,8 @@ namespace Grpc.Core
     public class Server
     {
         public const string CatchAllServiceName = "*";
+        private static string GrpcCatchAllServiceName = "/" + CatchAllServiceName + "/";
+
         const int DefaultRequestCallTokensPerCq = 2000;
         static readonly ILogger Logger = GrpcEnvironment.Logger.ForType<Server>();
 
@@ -46,14 +48,11 @@ namespace Grpc.Core
         readonly List<ChannelOption> options;
         readonly ServerSafeHandle handle;
         readonly object myLock = new object();
-        private readonly ReaderWriterLockSlim _wrl = new ReaderWriterLockSlim();
 
         readonly List<ServerServiceDefinition> serviceDefinitionsList = new List<ServerServiceDefinition>();
         readonly List<ServerPort> serverPortList = new List<ServerPort>();
         readonly Dictionary<string, IServerCallHandler> callHandlers = new Dictionary<string, IServerCallHandler>();
         readonly TaskCompletionSource<object> shutdownTcs = new TaskCompletionSource<object>();
-
-        private ReaderWriterLockSlim _rwl = new ReaderWriterLockSlim();
 
         bool startRequested;
         volatile bool shutdownRequested;
@@ -261,13 +260,11 @@ namespace Grpc.Core
         {
             lock (myLock)
             {
-                _wrl.EnterWriteLock();
                 foreach (var entry in serviceDefinition.CallHandlers)
                 {
                     callHandlers.Add(entry.Key, entry.Value);
                 }
                 serviceDefinitionsList.Add(serviceDefinition);
-                _wrl.ExitWriteLock();
             }
         }
 
@@ -343,9 +340,8 @@ namespace Grpc.Core
         {
             try
             {
-                _wrl.EnterReadLock();
                 IServerCallHandler callHandler;
-                if (!callHandlers.TryGetValue(newRpc.Method, out callHandler) && !callHandlers.TryGetValue(CatchAllServiceName, out callHandler))
+                if (!callHandlers.TryGetValue(newRpc.Method, out callHandler) && !callHandlers.TryGetValue(GrpcCatchAllServiceName, out callHandler))
                 {
                     callHandler = UnimplementedMethodCallHandler.Instance;
                 }
@@ -358,7 +354,6 @@ namespace Grpc.Core
             finally
             {
                 continuation();
-                _wrl.ExitReadLock();
             }
         }
 

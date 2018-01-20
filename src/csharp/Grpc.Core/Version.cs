@@ -20,4 +20,4 @@ using System.Reflection;
 
 [assembly: AssemblyVersion(Grpc.Core.VersionInfo.CurrentAssemblyVersion)]
 [assembly: AssemblyFileVersion(Grpc.Core.VersionInfo.CurrentAssemblyFileVersion)]
-[assembly: AssemblyInformationalVersion(Grpc.Core.VersionInfo.CurrentVersion)]
+[assembly: AssemblyInformationalVersion("1.8.3-dev")]
